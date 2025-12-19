@@ -1,5 +1,5 @@
-import { generateAccessToken, generateRefreshToken } from "../../utils/jwt";
-import User from "../user/user.model";
+import { generateAccessToken, generateRefreshToken } from "../../utils/jwt.js";
+import User from "../user/user.model.js";
 import bcrypt from "bcryptjs";
 
 const login = async (req, res) => {

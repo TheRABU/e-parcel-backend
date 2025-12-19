@@ -171,12 +171,12 @@ const parcelSchema = new mongoose.Schema(
   }
 );
 
-parcelSchema.pre("save", async function (next) {
-  if (!this.trackingNumber) {
-    this.trackingNumber = "TRK" + Date.now() + Math.floor(Math.random() * 1000);
-  }
-  next();
-});
+// parcelSchema.pre("save", async function (next) {
+//   if (!this.trackingNumber) {
+//     this.trackingNumber = "TRK" + Date.now() + Math.floor(Math.random() * 1000);
+//   }
+//   next();
+// });
 
 parcelSchema.index({ trackingNumber: 1 });
 parcelSchema.index({ customerId: 1 });

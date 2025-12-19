@@ -1,4 +1,4 @@
-import User from "./user.model";
+import User from "./user.model.js";
 import bcrypt from "bcryptjs";
 
 const createUserWithEmailAndPass = async (req, res) => {
@@ -29,7 +29,7 @@ const createUserWithEmailAndPass = async (req, res) => {
       });
     }
 
-    const hashedPassword = bcrypt.hash(password, process.env.SALT_ROUNDS);
+    const hashedPassword = await bcrypt.hash(password, 10);
 
     const payload = {
       name,
@@ -54,6 +54,45 @@ const createUserWithEmailAndPass = async (req, res) => {
   }
 };
 
+const getMe = async (req, res) => {
+  try {
+    if (!req.user) {
+      return res.status(401).json({
+        success: false,
+        message: "Unauthorized - No user data",
+      });
+    }
+    const decodedToken = req.user;
+
+    const userId = decodedToken?.userId;
+
+    if (!userId) {
+      return res.status(401).json({
+        success: false,
+        message: "Unauthorized - No user ID",
+      });
+    }
+    const user = await User.findById(userId).select("-password");
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: "User not found",
+      });
+    }
+    res.status(200).json({
+      success: true,
+      data: user,
+    });
+  } catch (error) {
+    console.log("error fetching user data", error);
+    return res.status(500).json({
+      success: false,
+      message: "Could not get user's data please try later",
+    });
+  }
+};
+
 export const UserController = {
   createUserWithEmailAndPass,
+  getMe,
 };

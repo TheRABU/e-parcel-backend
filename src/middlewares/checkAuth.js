@@ -1,5 +1,5 @@
 import jwt from "jsonwebtoken";
-import User from "../modules/user/user.model";
+import User from "../modules/user/user.model.js";
 
 export const checkAuth = (...allowedRoles) => {
   return async (req, res, next) => {
