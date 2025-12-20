@@ -39,11 +39,14 @@ const calculateDistance = (lat1, lon1, lat2, lon2) => {
 
   const distanceMiles = distanceKm * 0.621371;
 
-  return {
-    kilometers: parseFloat(distanceKm.toFixed(2)),
-    miles: parseFloat(distanceMiles.toFixed(2)),
-    meters: parseFloat((distanceKm * 1000).toFixed(0)),
-  };
+  const distanceInKilometer = parseFloat(distanceKm.toFixed(2));
+
+  return distanceInKilometer;
+  //   return {
+  //     kilometers: parseFloat(distanceKm.toFixed(2)),
+  //     miles: parseFloat(distanceMiles.toFixed(2)),
+  //     meters: parseFloat((distanceKm * 1000).toFixed(0)),
+  //   };
 };
 
 const estimateDeliveryTime = (distanceKm, vehicleType = "bike") => {

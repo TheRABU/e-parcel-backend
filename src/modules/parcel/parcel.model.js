@@ -63,6 +63,39 @@ const parcelSchema = new mongoose.Schema(
 
       // details
     },
+    //agent's current location
+    agentInformation: {
+      currentLocation: {
+        coordinates: {
+          lat: { type: Number, default: null },
+          lng: { type: Number, default: null },
+        },
+        updatedAt: { type: Date, default: null },
+      },
+      agentName: { type: String, default: null },
+      lastKnownLocation: {
+        coordinates: {
+          lat: { type: Number, default: null },
+          lng: { type: Number, default: null },
+        },
+        updatedAt: { type: Date, default: null },
+      },
+      locationHistory: [
+        {
+          coordinates: {
+            lat: Number,
+            lng: Number,
+          },
+          timestamp: { type: Date, default: Date.now },
+          speed: Number, // Optional: km/h
+          bearing: Number, // Optional: degrees (0-360)
+        },
+      ],
+    },
+    distance: {
+      type: Number,
+    },
+
     // parcel details
     parcelDetails: {
       weight: {

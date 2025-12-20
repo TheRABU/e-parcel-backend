@@ -1,3 +1,4 @@
+import { calculateDistance } from "../../utils/distanceCalculator.js";
 import Parcel from "./parcel.model.js";
 
 // customer's operations
@@ -96,6 +97,13 @@ const bookParcel = async (req, res) => {
     const trackingNumber =
       "TRK" + Date.now() + Math.floor(Math.random() * 1000);
 
+    const distance = calculateDistance(
+      pickupLat,
+      pickupLng,
+      deliveryLat,
+      deliveryLng
+    );
+
     const parcelData = {
       trackingNumber,
       customerId,
@@ -117,6 +125,7 @@ const bookParcel = async (req, res) => {
         contactPerson: deliveryContactPerson,
         contactPhone: deliveryContactPhone,
       },
+      distance: distance,
       parcelDetails: {
         weight: parseFloat(weight),
         size,
@@ -155,6 +164,7 @@ const bookParcel = async (req, res) => {
         status: parcel.status,
         estimatedDeliveryDate: parcel.estimatedDeliveryDate,
         paymentDetails: parcel.paymentDetails,
+        distance: distance,
       },
     });
   } catch (error) {
@@ -250,7 +260,7 @@ const myParcelHistory = async (req, res) => {
 const updateMyParcel = async (req, res) => {
   try {
     const customerId = req.user.userId;
-
+    const { parcelId } = req.params;
     const {
       pickupAddress,
       pickupLat,
@@ -282,6 +292,216 @@ const updateMyParcel = async (req, res) => {
         message: "No customer id found!",
       });
     }
+
+    if (!parcelId) {
+      return res.status(400).json({
+        success: false,
+        message: "Parcel ID is required in URL parameters",
+      });
+    }
+
+    const parcel = await Parcel.findById(parcelId);
+
+    if (!parcel) {
+      return res.status(404).json({
+        success: false,
+        message: "Parcel not found",
+      });
+    }
+
+    if (parcel.customerId.toString() !== customerId.toString()) {
+      return res.status(403).json({
+        success: false,
+        message: "You are not authorized to update this parcel",
+      });
+    }
+
+    const notAllowedStatuses = [
+      "picked-up",
+      "in-transit",
+      "out-for-delivery",
+      "delivered",
+      "failed",
+    ];
+    if (notAllowedStatuses.includes(parcel.status)) {
+      return res.status(400).json({
+        success: false,
+        message: `Cannot update parcel with status: ${parcel.status}. Parcel is already in transit or delivered.`,
+        allowedStatuses: ["pending", "assigned"],
+      });
+    }
+
+    // now prepare the update data
+
+    const updateData = {};
+
+    // update pickup location
+    if (pickupAddress || pickupLat || pickupLng) {
+      updateData.pickupLocation = {
+        address: pickupAddress || parcel.pickupLocation.address,
+        coordinates: {
+          lat: pickupLat
+            ? parseFloat(pickupLat)
+            : parcel.pickupLocation.coordinates.lat,
+          lng: pickupLng
+            ? parseFloat(pickupLng)
+            : parcel.pickupLocation.coordinates.lng,
+        },
+        contactPerson:
+          pickupContactPerson || parcel.pickupLocation.contactPerson || "",
+        contactPhone:
+          pickupContactPhone || parcel.pickupLocation.contactPhone || "",
+      };
+    }
+
+    // Update delivery location if provided
+    if (
+      deliveryAddress ||
+      deliveryLat ||
+      deliveryLng ||
+      deliveryContactPerson ||
+      deliveryContactPhone
+    ) {
+      updateData.deliveryLocation = {
+        address: deliveryAddress || parcel.deliveryLocation.address,
+        coordinates: {
+          lat: deliveryLat
+            ? parseFloat(deliveryLat)
+            : parcel.deliveryLocation.coordinates.lat,
+          lng: deliveryLng
+            ? parseFloat(deliveryLng)
+            : parcel.deliveryLocation.coordinates.lng,
+        },
+        contactPerson:
+          deliveryContactPerson || parcel.deliveryLocation.contactPerson,
+        contactPhone:
+          deliveryContactPhone || parcel.deliveryLocation.contactPhone,
+      };
+    }
+
+    if (weight || size || type || description || quantity) {
+      updateData.parcelDetails = {
+        weight: weight ? parseFloat(weight) : parcel.parcelDetails.weight,
+        size: size || parcel.parcelDetails.size,
+        type: type || parcel.parcelDetails.type,
+        description: description || parcel.parcelDetails.description || "",
+        quantity: quantity ? parseInt(quantity) : parcel.parcelDetails.quantity,
+      };
+    }
+
+    if (paymentMethod || amount || codAmount) {
+      if (paymentMethod && !["cod", "prepaid"].includes(paymentMethod)) {
+        return res.status(400).json({
+          success: false,
+          message: 'Payment method must be either "cod" or "prepaid"',
+        });
+      }
+
+      updateData.paymentDetails = {
+        paymentMethod: paymentMethod || parcel.paymentDetails.paymentMethod,
+        amount: amount ? parseFloat(amount) : parcel.paymentDetails.amount,
+        codAmount: codAmount
+          ? parseFloat(codAmount)
+          : parcel.paymentDetails.codAmount,
+        isPaid: parcel.paymentDetails.isPaid,
+        paidAt: parcel.paymentDetails.paidAt,
+      };
+      if (
+        paymentMethod === "cod" &&
+        parcel.paymentDetails.paymentMethod === "prepaid"
+      ) {
+        updateData.paymentDetails.isPaid = false;
+        updateData.paymentDetails.paidAt = null;
+      }
+    }
+
+    if (estimatedDeliveryDate) {
+      updateData.estimatedDeliveryDate = new Date(estimatedDeliveryDate);
+    }
+
+    if (size) {
+      const validSizes = ["small", "medium", "large", "extra-large"];
+      if (!validSizes.includes(size)) {
+        return res.status(400).json({
+          success: false,
+          message: `Size must be one of: ${validSizes.join(", ")}`,
+        });
+      }
+    }
+
+    if (type) {
+      const validTypes = [
+        "document",
+        "package",
+        "fragile",
+        "electronics",
+        "food",
+        "other",
+      ];
+      if (!validTypes.includes(type)) {
+        return res.status(400).json({
+          success: false,
+          message: `Type must be one of: ${validTypes.join(", ")}`,
+        });
+      }
+    }
+
+    if (Object.keys(updateData).length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: "No data provided to update",
+        data: parcel,
+      });
+    }
+
+    // Update parcel in database
+    const updatedParcel = await Parcel.findByIdAndUpdate(parcelId, updateData, {
+      new: true,
+      runValidators: true,
+    }).populate("agentId", "name email phone");
+
+    // update to status history
+    updatedParcel.statusHistory.push({
+      status: updatedParcel.status,
+      timestamp: new Date(),
+      remarks: "Parcel details updated by customer",
+      updatedBy: customerId,
+    });
+
+    await updatedParcel.save();
+
+    const formattedParcel = {
+      id: updatedParcel._id,
+      trackingNumber: updatedParcel.trackingNumber,
+      status: updatedParcel.status,
+      pickupAddress: updatedParcel.pickupLocation.address,
+      deliveryAddress: updatedParcel.deliveryLocation.address,
+      parcelType: updatedParcel.parcelDetails.type,
+      parcelSize: updatedParcel.parcelDetails.size,
+      weight: updatedParcel.parcelDetails.weight,
+      paymentMethod: updatedParcel.paymentDetails.paymentMethod,
+      amount: updatedParcel.paymentDetails.amount,
+      codAmount: updatedParcel.paymentDetails.codAmount,
+      isPaid: updatedParcel.paymentDetails.isPaid,
+      estimatedDeliveryDate: updatedParcel.estimatedDeliveryDate,
+      actualDeliveryDate: updatedParcel.actualDeliveryDate,
+      createdAt: updatedParcel.createdAt,
+      updatedAt: updatedParcel.updatedAt,
+      agent: updatedParcel.agentId
+        ? {
+            name: updatedParcel.agentId.name,
+            phone: updatedParcel.agentId.phone,
+            email: updatedParcel.agentId.email,
+          }
+        : null,
+    };
+
+    res.status(200).json({
+      success: true,
+      message: "Parcel updated successfully",
+      data: formattedParcel,
+      updatedFields: Object.keys(updateData),
+    });
   } catch (error) {
     console.log("Could not update error::", error.message);
     return res.status(500).json({
@@ -294,4 +514,5 @@ const updateMyParcel = async (req, res) => {
 export const ParcelController = {
   bookParcel,
   myParcelHistory,
+  updateMyParcel,
 };
