@@ -25,5 +25,11 @@ parcelRoutes.put(
   checkAuth("customer"),
   ParcelController.updateMyParcel
 );
+// track parcel
+parcelRoutes.get(
+  "/track/:trackingNumber",
+  checkAuth("customer", "admin", "agent"),
+  ParcelController.trackParcel
+);
 
 export default parcelRoutes;

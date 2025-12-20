@@ -1,3 +1,4 @@
+import { calculateDeliveryProgress } from "../../utils/deliveryProgress.js";
 import { calculateDistance } from "../../utils/distanceCalculator.js";
 import Parcel from "./parcel.model.js";
 
@@ -511,8 +512,162 @@ const updateMyParcel = async (req, res) => {
   }
 };
 
+const trackParcel = async (req, res) => {
+  try {
+    const { trackingNumber } = req.params;
+    const userId = req.user?.userId;
+
+    if (!userId) {
+      return res.status(400).json({
+        success: false,
+        message:
+          "No userId found to track your parcel...please login and try again!",
+      });
+    }
+
+    if (!trackingNumber || trackingNumber.trim() === "") {
+      return res.status(400).json({
+        success: false,
+        message: "Tracking number is required",
+      });
+    }
+
+    const parcel = await Parcel.findOne({ trackingNumber })
+      .populate("customerId", "name email phone")
+      .populate("agentId", "name phone agentDetails.vehicleType")
+      .lean();
+
+    if (!parcel) {
+      return res.status(404).json({
+        success: false,
+        message: "Parcel not found with this tracking number",
+      });
+    }
+
+    let currentLocation = null;
+    let locationSource = "parcel_cache";
+    let locationTimestamp = null;
+
+    if (parcel.agentId && parcel.agentId._id) {
+      const agent = await User.findById(parcel.agentId._id)
+        .select("agentDetails.currentLocation updatedAt")
+        .lean();
+
+      if (agent && agent.agentDetails?.currentLocation?.coordinates) {
+        const [lng, lat] = agent.agentDetails.currentLocation.coordinates;
+        currentLocation = { lat, lng };
+        locationSource = "agent_realtime";
+        locationTimestamp = agent.updatedAt;
+      }
+    }
+
+    if (
+      !currentLocation &&
+      parcel.agentInformation?.currentLocation?.coordinates?.lat
+    ) {
+      currentLocation = parcel.agentInformation.currentLocation.coordinates;
+      locationTimestamp = parcel.agentInformation.currentLocation.updatedAt;
+    }
+
+    if (
+      !currentLocation &&
+      parcel.agentInformation?.lastKnownLocation?.coordinates?.lat
+    ) {
+      currentLocation = parcel.agentInformation.lastKnownLocation.coordinates;
+      locationTimestamp = parcel.agentInformation.lastKnownLocation.updatedAt;
+      locationSource = "last_known";
+    }
+
+    const progressInfo = calculateDeliveryProgress(parcel, currentLocation);
+
+    const trackingData = {
+      trackingNumber: parcel.trackingNumber,
+      status: parcel.status,
+      currentStatus: parcel.status,
+      currentLocation: currentLocation
+        ? {
+            coordinates: currentLocation,
+            source: locationSource,
+            lastUpdated: locationTimestamp,
+            accuracy: "high",
+          }
+        : null,
+
+      route: {
+        pickup: {
+          address: parcel.pickupLocation.address,
+          coordinates: parcel.pickupLocation.coordinates,
+        },
+        delivery: {
+          address: parcel.deliveryLocation.address,
+          coordinates: parcel.deliveryLocation.coordinates,
+        },
+        distance: parcel.distance || null,
+      },
+
+      agent: parcel.agentId
+        ? {
+            id: parcel.agentId._id,
+            name: parcel.agentId.name || parcel.agentInformation?.agentName,
+            phone: parcel.agentId.phone,
+            vehicleType: parcel.agentId.agentDetails?.vehicleType || "bike",
+          }
+        : null,
+
+      statusHistory:
+        parcel.statusHistory?.map((item) => ({
+          status: item.status,
+          timestamp: item.timestamp,
+          location: item.location,
+          remarks: item.remarks,
+        })) || [],
+
+      estimatedDelivery: parcel.estimatedDeliveryDate,
+      actualDelivery: parcel.actualDeliveryDate,
+      attemptCount: parcel.attemptCount || 0,
+      failureReason: parcel.failureReason || null,
+
+      progress: progressInfo.percentage,
+      currentStage: progressInfo.stage,
+      nextMilestone: progressInfo.nextMilestone,
+      estimatedTimeRemaining: progressInfo.estimatedTimeRemaining,
+
+      isLiveTrackingAvailable:
+        currentLocation !== null &&
+        ["picked-up", "in-transit", "out-for-delivery"].includes(parcel.status),
+      lastUpdated: parcel.updatedAt,
+      createdAt: parcel.createdAt,
+    };
+
+    res.status(200).json({
+      success: true,
+      data: trackingData,
+      meta: {
+        trackingNumber: parcel.trackingNumber,
+        serverTime: new Date().toISOString(),
+        cacheControl: "no-cache",
+      },
+    });
+  } catch (error) {
+    console.error("Error tracking parcel:", error.message);
+    if (error.name === "CastError") {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid tracking number format",
+      });
+    }
+
+    res.status(500).json({
+      success: false,
+      message: "Unable to track parcel at the moment",
+      error: process.env.NODE_ENV === "development" ? error.message : undefined,
+    });
+  }
+};
+
 export const ParcelController = {
   bookParcel,
   myParcelHistory,
   updateMyParcel,
+  trackParcel,
 };
