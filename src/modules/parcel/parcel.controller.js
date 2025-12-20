@@ -1,5 +1,6 @@
 import Parcel from "./parcel.model.js";
 
+// customer's operations
 const bookParcel = async (req, res) => {
   try {
     const {
@@ -181,6 +182,116 @@ const bookParcel = async (req, res) => {
   }
 };
 
+const myParcelHistory = async (req, res) => {
+  try {
+    const customerId = req.user.userId;
+
+    const parcels = await Parcel.find({ customerId })
+      .populate("agentId", "name email phone")
+      .sort({ createdAt: -1 })
+      .lean();
+
+    if (!parcels || parcels.length === 0) {
+      return res.status(200).json({
+        success: true,
+        data: {
+          parcels: [],
+          message: "No parcels found for this customer",
+        },
+      });
+    }
+    const formattedParcels = parcels.map((parcel) => ({
+      id: parcel._id,
+      trackingNumber: parcel.trackingNumber,
+      status: parcel.status,
+      pickupAddress: parcel.pickupLocation.address,
+      deliveryAddress: parcel.deliveryLocation.address,
+      parcelType: parcel.parcelDetails.type,
+      parcelSize: parcel.parcelDetails.size,
+      weight: parcel.parcelDetails.weight,
+      paymentMethod: parcel.paymentDetails.paymentMethod,
+      amount: parcel.paymentDetails.amount,
+      codAmount: parcel.paymentDetails.codAmount,
+      isPaid: parcel.paymentDetails.isPaid,
+      estimatedDeliveryDate: parcel.estimatedDeliveryDate,
+      actualDeliveryDate: parcel.actualDeliveryDate,
+      createdAt: parcel.createdAt,
+      updatedAt: parcel.updatedAt,
+      agent: parcel.agentId
+        ? {
+            name: parcel.agentId.name,
+            phone: parcel.agentId.phone,
+            email: parcel.agentId.email,
+          }
+        : null,
+
+      statusHistory: parcel.statusHistory || [],
+      failureReason: parcel.failureReason || null,
+      attemptCount: parcel.attemptCount || 0,
+    }));
+
+    res.status(200).json({
+      success: true,
+      data: {
+        parcels: formattedParcels,
+        count: parcels.length,
+        customerId: customerId,
+      },
+    });
+  } catch (error) {
+    console.error("Error fetching parcel history:", error.message);
+    res.status(500).json({
+      success: false,
+      message: "Internal server error",
+    });
+  }
+};
+
+const updateMyParcel = async (req, res) => {
+  try {
+    const customerId = req.user.userId;
+
+    const {
+      pickupAddress,
+      pickupLat,
+      pickupLng,
+      pickupContactPerson,
+      pickupContactPhone,
+
+      deliveryAddress,
+      deliveryLat,
+      deliveryLng,
+      deliveryContactPerson,
+      deliveryContactPhone,
+
+      weight,
+      size,
+      type,
+      description,
+      quantity,
+
+      paymentMethod,
+      amount,
+      codAmount,
+      estimatedDeliveryDate,
+    } = req.body;
+
+    if (!customerId) {
+      return res.status(500).json({
+        success: false,
+        message: "No customer id found!",
+      });
+    }
+  } catch (error) {
+    console.log("Could not update error::", error.message);
+    return res.status(500).json({
+      success: false,
+      message: "Could not update data Server issue occurred please try later",
+    });
+  }
+};
+
 export const ParcelController = {
   bookParcel,
+  myParcelHistory,
 };
