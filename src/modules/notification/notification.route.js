@@ -6,7 +6,7 @@ const notificationRouter = Router();
 
 notificationRouter.post(
   "/",
-  checkAuth("admin"),
+  checkAuth("admin", "customer"),
   NotificationController.createNotification
 );
 

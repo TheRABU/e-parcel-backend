@@ -6,14 +6,9 @@ const getIO = (req) => {
 
 const createNotification = async (req, res) => {
   try {
-    const {
-      userId,
-      parcelId,
-      type,
-      title,
-      message,
-      sendSocket = true,
-    } = req.body;
+    const { parcelId, type, title, message, sendSocket = true } = req.body;
+
+    const userId = req.user.userId;
 
     if (!userId || !title || !message || !type) {
       return res.status(400).json({
