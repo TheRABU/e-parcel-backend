@@ -91,6 +91,33 @@ io.on("connection", (socket) => {
     }
   });
 
+  // notifications
+  socket.on("join-notifications", (userId) => {
+    if (socket.userId === userId) {
+      socket.join(`user:${userId}`);
+      console.log(
+        `User ${userId} joined notification room via socket ${socket.id}`
+      );
+    }
+  });
+
+  socket.on("leave-notifications", (userId) => {
+    socket.leave(`user:${userId}`);
+  });
+
+  // Request unread count
+  socket.on("notifications:unread-count", async (userId) => {
+    try {
+      const unreadCount = await Notification.countDocuments({
+        userId,
+        isRead: false,
+      });
+
+      socket.emit("notifications:unread-count", { userId, unreadCount });
+    } catch (error) {
+      console.error("Error getting unread count:", error);
+    }
+  });
   // Admin/Agent joins admin room
   socket.on("join-admin-room", (roomId) => {
     socket.join(`admin:${roomId}`);

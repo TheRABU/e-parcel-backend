@@ -1,5 +1,6 @@
 import { calculateDeliveryProgress } from "../../utils/deliveryProgress.js";
 import { calculateDistance } from "../../utils/distanceCalculator.js";
+import { NotificationService } from "../notification/notification.controller.js";
 import Parcel from "./parcel.model.js";
 
 // customer's operations
@@ -470,6 +471,13 @@ const updateMyParcel = async (req, res) => {
     });
 
     await updatedParcel.save();
+
+    const io = req.app.get("io");
+    await NotificationService.sendParcelStatusNotification(
+      updatedParcel,
+      newStatus,
+      io
+    );
 
     const formattedParcel = {
       id: updatedParcel._id,

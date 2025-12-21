@@ -59,7 +59,6 @@ const setupTrackingHandlers = (io, socket) => {
 
   // Admin/Agent tracking view
   socket.on("admin:track-parcel", async (trackingNumber) => {
-    // Validate admin/agent role
     if (!["admin", "agent"].includes(socket.userRole)) {
       return socket.emit("error", { message: "Unauthorized" });
     }
