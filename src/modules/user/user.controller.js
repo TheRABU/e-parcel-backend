@@ -38,12 +38,12 @@ const createUserWithEmailAndPass = async (req, res) => {
       phone,
     };
 
-    await User.create(payload);
+    const newUser = await User.create(payload);
 
     res.status(201).json({
       success: true,
       message: "User account created successfully!",
-      user,
+      user: newUser,
     });
   } catch (error) {
     console.log("error at creating user", error.message);
@@ -56,20 +56,15 @@ const createUserWithEmailAndPass = async (req, res) => {
 
 const getMe = async (req, res) => {
   try {
-    if (!req.user) {
-      return res.status(401).json({
-        success: false,
-        message: "Unauthorized - No user data",
-      });
-    }
     const decodedToken = req.user;
+    console.log("decoded token backend of getMe", decodedToken);
 
     const userId = decodedToken?.userId;
 
     if (!userId) {
       return res.status(401).json({
         success: false,
-        message: "Unauthorized - No user ID",
+        message: "No user ID",
       });
     }
     const user = await User.findById(userId).select("-password");

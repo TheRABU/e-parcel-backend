@@ -8,7 +8,7 @@ const userRoutes = Router();
 userRoutes.post("/register", UserController.createUserWithEmailAndPass);
 userRoutes.get(
   "/me",
-  checkAuth(...Object.values(...Roles)),
+  checkAuth("customer", "admin", "agent"),
   UserController.getMe
 );
 

@@ -25,7 +25,7 @@ const moduleRoutes = [
     route: notificationRouter,
   },
   {
-    path: "/agents",
+    path: "/agent",
     route: agentRoutes,
   },
 ];
