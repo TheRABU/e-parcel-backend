@@ -673,9 +673,53 @@ const trackParcel = async (req, res) => {
   }
 };
 
+// admin functions
+
+const pendingParcels = async (req, res) => {
+  try {
+    const userId = req.user.userId;
+    if (!userId) {
+      return res.status(400).json({
+        success: false,
+        message: "User ID not found. Please login again.",
+      });
+    }
+
+    const pendingParcels = await Parcel.find({ status: "pending" })
+      .populate("customerId", "name email phone")
+      .sort({ createdAt: -1 })
+      .lean();
+
+    if (pendingParcels.length <= 0) {
+      return res.status(200).json({
+        success: true,
+        message: "No pending parcels found",
+        data: [],
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: "Fetched all pending parcels",
+      data: {
+        parcels: pendingParcels,
+        count: pendingParcels.length,
+      },
+    });
+  } catch (error) {
+    console.error("Error fetching pending parcels:", error.message);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to fetch pending parcels",
+    });
+  }
+};
+
 export const ParcelController = {
   bookParcel,
   myParcelHistory,
   updateMyParcel,
   trackParcel,
+  // admin
+  pendingParcels,
 };

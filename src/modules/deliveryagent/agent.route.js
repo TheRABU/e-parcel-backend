@@ -32,7 +32,7 @@ agentRoutes.get(
 );
 
 agentRoutes.put(
-  "/assigned-update",
+  "/assigned-update/:parcelId",
   checkAuth("agent"),
   AgentControllers.updateParcelStatus
 );

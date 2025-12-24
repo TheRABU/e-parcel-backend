@@ -4,6 +4,7 @@ import authRoutes from "../modules/auth/auth.route.js";
 import parcelRoutes from "../modules/parcel/parcel.route.js";
 import notificationRouter from "../modules/notification/notification.route.js";
 import agentRoutes from "../modules/deliveryagent/agent.route.js";
+import adminRouter from "../modules/admin/admin.routes.js";
 
 const router = Router();
 
@@ -27,6 +28,10 @@ const moduleRoutes = [
   {
     path: "/agent",
     route: agentRoutes,
+  },
+  {
+    path: "/admin",
+    route: adminRouter,
   },
 ];
 

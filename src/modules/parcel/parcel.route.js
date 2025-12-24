@@ -32,4 +32,11 @@ parcelRoutes.get(
   ParcelController.trackParcel
 );
 
+//admin
+parcelRoutes.get(
+  "/all-parcel",
+  checkAuth("admin"),
+  ParcelController.pendingParcels
+);
+
 export default parcelRoutes;
